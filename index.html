@@ -3,69 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shareable Shoe Tier Maker</title>
+    <title>Image Tier List Maker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
         body { font-family: 'Noto Sans KR', sans-serif; background-color: #f1f5f9; }
-        #capture-container { padding: 30px; background: white; border-radius: 12px; display: inline-block; min-width: 100%; }
-        #tier-table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-        th, td { border: 1px solid #e2e8f0; position: relative; }
-        .cell-input { width: 100%; border: none; background: transparent; text-align: center; outline: none; padding: 10px 5px; }
-        .model-name { font-weight: 700; font-size: 14px; }
-        .model-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
-        .color-tool { position: absolute; bottom: 2px; right: 2px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+        
+        /* 레이아웃 */
+        #capture-container { padding: 30px; background: white; border-radius: 12px; display: inline-block; min-width: 100%; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        #tier-table { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #e2e8f0; position: relative; vertical-align: top; }
+        
+        /* 텍스트 입력창 */
+        .cell-input { width: 100%; border: none; background: transparent; text-align: center; outline: none; padding: 4px 2px; }
+        .model-name { font-weight: 700; font-size: 13px; color: #1e293b; margin-top: 4px; }
+        .model-desc { font-size: 11px; color: #64748b; }
+
+        /* --- 이미지 드래그 앤 드롭 영역 스타일 --- */
+        .model-cell { padding: 8px; transition: all 0.2s; }
+        .image-drop-zone {
+            width: 100%; height: 80px; /* 이미지 영역 높이 고정 */
+            border: 2px dashed #cbd5e1; border-radius: 6px;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #f8fafc; color: #94a3b8; font-size: 11px;
+            position: relative; overflow: hidden; transition: all 0.2s;
+        }
+        /* 드래그 오버 시 강조 */
+        .model-cell.drag-over .image-drop-zone { border-color: #3b82f6; background-color: #eff6ff; color: #3b82f6; }
+        /* 업로드된 이미지 스타일 */
+        .uploaded-image { width: 100%; height: 100%; object-fit: contain; padding: 2px; background: white; display: none; }
+        .image-drop-zone.has-image .uploaded-image { display: block; }
+        .image-drop-zone.has-image .placeholder-text { display: none; }
+        .image-drop-zone.has-image { border-style: solid; border-color: transparent; background: transparent; }
+
+        /* 이미지 삭제 버튼 */
+        .remove-img-btn {
+            position: absolute; top: 2px; right: 2px;
+            background: rgba(0,0,0,0.6); color: white; border-radius: 4px;
+            width: 18px; height: 18px; font-size: 10px; line-height: 18px; text-align: center;
+            cursor: pointer; opacity: 0; transition: opacity 0.2s;
+        }
+        .image-drop-zone.has-image:hover .remove-img-btn { opacity: 1; }
+
+        /* --- 기존 도구 스타일 (색상, 삭제 등) --- */
+        .color-tool { position: absolute; bottom: 2px; right: 2px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
         th:hover .color-tool, td:hover .color-tool { opacity: 1; }
         .color-picker-input { width: 16px; height: 16px; padding: 0; border: none; cursor: pointer; background: transparent; }
         .text-toggle-btn { background: rgba(255,255,255,0.8); border-radius: 2px; font-size: 8px; padding: 1px 3px; cursor: pointer; border: 1px solid #ccc; color: black; }
         .del-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; z-index: 20; }
         th:hover .del-btn, td:hover .del-btn { opacity: 1; }
         .no-capture { display: none !important; }
-        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+
+        /* 토스트 메시지 */
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 3s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="toast">링크가 클립보드에 복사되었습니다!</div>
+    <div id="toast">링크 복사 완료! (이미지는 공유되지 않습니다)</div>
 
     <div class="max-w-[98%] mx-auto">
-        <header class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <header class="mb-6 flex flex-col md:flex-row items-end justify-between gap-4">
             <div>
-                <h1 class="text-2xl font-black text-gray-800 italic">RUNNING <span class="text-blue-600">SHARE</span> LIST</h1>
-                <p class="text-gray-500 text-sm">표를 완성한 후 링크를 복사하여 친구에게 공유하세요.</p>
+                <h1 class="text-3xl font-black text-gray-800 italic tracking-tight">RUNNING <span class="text-blue-600">IMAGE</span> TIER</h1>
+                <p class="text-gray-500 text-sm mt-1">이미지 파일을 칸에 드래그하여 나만의 티어표를 완성하세요.</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="addBrand()" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black">+ 브랜드</button>
-                <button onclick="addTier()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-700">+ 티어</button>
-                <button onclick="generateShareLink()" class="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-purple-700">🔗 공유 링크 복사</button>
-                <button onclick="downloadTable()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-700">📸 이미지 저장</button>
+            <div class="flex flex-wrap gap-2 bg-white p-2 rounded-xl shadow-sm">
+                <button onclick="addBrand()" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-black transition flex items-center">+ 브랜드 열</button>
+                <button onclick="addTier()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-700 transition flex items-center">+ 티어 행</button>
+                <div class="h-auto w-px bg-gray-200 mx-1"></div>
+                <button onclick="generateShareLink()" class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold text-xs hover:bg-purple-200 transition flex items-center">🔗 텍스트 공유 링크</button>
+                <button onclick="downloadTable()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-700 transition shadow-sm flex items-center gap-1">
+                    <span>📸 이미지 저장</span>
+                </button>
             </div>
         </header>
 
-        <div id="capture-container" class="shadow-xl">
+        <div id="capture-container">
             <table id="tier-table">
                 <thead>
                     <tr id="header-row">
-                        <th class="p-4 bg-gray-50 text-gray-400 text-[10px] font-black uppercase w-[140px]">Tier \ Brand</th>
-                        </tr>
+                        <th class="p-4 bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-wider w-[120px] border-b-2 border-gray-200">Tier \ Brand</th>
+                    </tr>
                 </thead>
                 <tbody id="tier-body">
                 </tbody>
             </table>
         </div>
+        <p class="text-center text-xs text-gray-400 mt-4">Tip: 이미지가 포함된 표는 '공유 링크'로 전달되지 않습니다. 꼭 '이미지 저장'을 이용해 주세요.</p>
     </div>
 
     <script>
-        // 초기 데이터 (공유 링크가 없을 경우)
+        // 초기 데이터
         const defaultData = {
             brands: [{name: "ON RUNNING", bg: "#1e293b", text: "#ffffff"}, {name: "NIKE", bg: "#1e293b", text: "#ffffff"}],
-            tiers: [
-                {name: "레이싱 (RACING)", bg: "#fee2e2", text: "#b91c1c", models: [["모델명", "설명"], ["모델명", "설명"]]}
-            ]
+            tiers: [{name: "RACING", bg: "#fee2e2", text: "#b91c1c", cols: 2}]
         };
 
         window.onload = () => {
@@ -74,131 +110,148 @@
                 try {
                     const decoded = JSON.parse(decodeURIComponent(escape(atob(hash.substring(1)))));
                     renderTable(decoded);
-                } catch (e) {
-                    renderTable(defaultData);
-                }
-            } else {
-                renderTable(defaultData);
-            }
+                } catch (e) { renderTable(defaultData); }
+            } else { renderTable(defaultData); }
         };
 
-        function renderTable(data) {
-            const header = document.getElementById('header-row');
-            const body = document.getElementById('tier-body');
-            header.innerHTML = '<th class="p-4 bg-gray-50 text-gray-400 text-[10px] font-black uppercase w-[140px]">Tier \\ Brand</th>';
-            body.innerHTML = '';
+        // ================= 이미지 드래그 앤 드롭 관련 함수 =================
+        
+        // 드래그 이벤트 설정 (셀 생성 시 호출)
+        function setupDragEvents(cell) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                cell.addEventListener(eventName, preventDefaults, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                cell.addEventListener(eventName, highlight, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                cell.addEventListener(eventName, unhighlight, false);
+            });
+            cell.addEventListener('drop', handleDrop, false);
+        }
 
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        function highlight(e) { this.closest('.model-cell').classList.add('drag-over'); }
+        function unhighlight(e) { this.closest('.model-cell').classList.remove('drag-over'); }
+
+        // 파일 드롭 처리
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                const file = files[0];
+                const dropZone = this.querySelector('.image-drop-zone');
+                const img = dropZone.querySelector('.uploaded-image');
+                
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = function() {
+                    img.src = reader.result;
+                    dropZone.classList.add('has-image');
+                }
+            }
+        }
+
+        // 이미지 삭제 함수
+        function removeImage(btn) {
+            const dropZone = btn.closest('.image-drop-zone');
+            const img = dropZone.querySelector('.uploaded-image');
+            img.src = "";
+            dropZone.classList.remove('has-image');
+        }
+
+        // ================= 테이블 렌더링 및 조작 함수 =================
+
+        function renderTable(data) {
+            document.getElementById('header-row').innerHTML = '<th class="p-4 bg-gray-100 text-gray-500 text-[10px] font-black uppercase tracking-wider w-[120px] border-b-2 border-gray-200">Tier \\ Brand</th>';
+            document.getElementById('tier-body').innerHTML = '';
             data.brands.forEach(b => createBrandCell(b.name, b.bg, b.text));
-            data.tiers.forEach(t => createTierRow(t.name, t.bg, t.text, t.models));
+            data.tiers.forEach(t => createTierRow(t.name, t.bg, t.text, t.cols || data.brands.length));
+        }
+
+        // 모델 셀 HTML 생성 (이미지 영역 포함)
+        function getModelCellHtml() {
+            return `
+                <div class="image-drop-zone">
+                    <span class="placeholder-text">📷 이미지 드래그</span>
+                    <img class="uploaded-image" src="" alt="uploaded">
+                    <button class="remove-img-btn" onclick="removeImage(this)">✕</button>
+                </div>
+                <input type="text" class="cell-input model-name" placeholder="모델명">
+                <input type="text" class="cell-input model-desc" placeholder="설명">
+            `;
         }
 
         function createBrandCell(name, bg, text) {
             const th = document.createElement('th');
-            th.className = "brand-cell relative group";
-            th.style.backgroundColor = bg;
-            th.style.color = text;
-            th.innerHTML = `
-                <input type="text" class="cell-input font-black uppercase text-inherit" value="${name}">
-                <div class="color-tool">
-                    <button class="text-toggle-btn" onclick="toggleText(this)">B/W</button>
-                    <input type="color" class="color-picker-input" value="${bg}" oninput="changeBg(this)">
-                </div>
-                <span onclick="removeColumn(this)" class="del-btn">×</span>
-            `;
+            th.className = "brand-cell relative group p-2 border-b-2 border-gray-200";
+            th.style.backgroundColor = bg; th.style.color = text;
+            th.innerHTML = `<input type="text" class="cell-input font-black uppercase text-inherit" value="${name}"><div class="color-tool"><button class="text-toggle-btn" onclick="toggleText(this)">B/W</button><input type="color" class="color-picker-input" value="${bg}" oninput="changeBg(this)"></div><span onclick="removeColumn(this)" class="del-btn">×</span>`;
             document.getElementById('header-row').appendChild(th);
         }
 
-        function createTierRow(name, bg, text, models) {
-            const tr = document.createElement('tr');
-            tr.className = "tier-row";
-            let html = `
-                <td class="tier-label-cell font-black" style="background-color: ${bg}; color: ${text};">
-                    <input type="text" class="cell-input font-black text-inherit" value="${name}">
-                    <div class="color-tool">
-                        <button class="text-toggle-btn" onclick="toggleText(this)">B/W</button>
-                        <input type="color" class="color-picker-input" value="${bg}" oninput="changeBg(this)">
-                    </div>
-                    <span onclick="removeRow(this)" class="del-btn">×</span>
-                </td>
-            `;
-            const brandCount = document.getElementById('header-row').cells.length - 1;
-            for (let i = 0; i < brandCount; i++) {
-                const model = models && models[i] ? models[i] : ["", ""];
-                html += `<td class="p-2"><input type="text" class="cell-input model-name" value="${model[0]}" placeholder="모델명"><input type="text" class="cell-input model-desc" value="${model[1]}" placeholder="설명"></td>`;
+        function createTierRow(name, bg, text, colCount) {
+            const tr = document.createElement('tr'); tr.className = "tier-row";
+            let html = `<td class="tier-label-cell font-black p-2 relative group" style="background-color: ${bg}; color: ${text};"><input type="text" class="cell-input font-black text-inherit" value="${name}"><div class="color-tool"><button class="text-toggle-btn" onclick="toggleText(this)">B/W</button><input type="color" class="color-picker-input" value="${bg}" oninput="changeBg(this)"></div><span onclick="removeRow(this)" class="del-btn">×</span></td>`;
+            for (let i = 0; i < colCount; i++) {
+                html += `<td class="model-cell">${getModelCellHtml()}</td>`;
             }
             tr.innerHTML = html;
             document.getElementById('tier-body').appendChild(tr);
+            // 새로 생성된 셀들에 드래그 이벤트 연결
+            tr.querySelectorAll('.model-cell').forEach(setupDragEvents);
         }
 
-        function addBrand() { createBrandCell("NEW BRAND", "#1e293b", "#ffffff"); document.querySelectorAll('.tier-row').forEach(row => {
-            const td = document.createElement('td');
-            td.className = "p-2";
-            td.innerHTML = `<input type="text" class="cell-input model-name" placeholder="모델명"><input type="text" class="cell-input model-desc" placeholder="설명">`;
-            row.appendChild(td);
-        });}
+        function addBrand() {
+            createBrandCell("NEW BRAND", "#1e293b", "#ffffff");
+            document.querySelectorAll('.tier-row').forEach(row => {
+                const td = document.createElement('td');
+                td.className = "model-cell";
+                td.innerHTML = getModelCellHtml();
+                row.appendChild(td);
+                setupDragEvents(td); // 이벤트 연결
+            });
+        }
 
-        function addTier() { createTierRow("NEW TIER", "#f1f5f9", "#475569", []); }
+        function addTier() {
+            const colCount = document.getElementById('header-row').cells.length - 1;
+            createTierRow("NEW TIER", "#f1f5f9", "#475569", colCount);
+        }
 
+        // 유틸리티 함수들 (색상변경, 삭제, 공유, 다운로드)
         function changeBg(input) { (input.closest('th') || input.closest('td')).style.backgroundColor = input.value; }
-        function toggleText(btn) { 
-            const cell = btn.closest('th') || btn.closest('td');
-            cell.style.color = (window.getComputedStyle(cell).color === 'rgb(255, 255, 255)') ? '#000000' : '#ffffff';
-        }
-
+        function toggleText(btn) { const cell = btn.closest('th') || btn.closest('td'); cell.style.color = (window.getComputedStyle(cell).color === 'rgb(255, 255, 255)') ? '#000000' : '#ffffff'; }
         function removeRow(btn) { btn.closest('tr').remove(); }
-        function removeColumn(btn) {
-            const index = btn.closest('th').cellIndex;
-            document.querySelectorAll('tr').forEach(row => row.deleteCell(index));
-        }
+        function removeColumn(btn) { const index = btn.closest('th').cellIndex; document.querySelectorAll('tr').forEach(row => row.deleteCell(index)); }
 
-        // 공유 링크 생성 (현재 상태를 Base64로 압축)
         function generateShareLink() {
+            // *중요* 공유 링크 생성 시 이미지는 제외하고 텍스트 데이터만 수집합니다.
             const data = { brands: [], tiers: [] };
             const headers = document.querySelectorAll('#header-row th');
-            for (let i = 1; i < headers.length; i++) {
-                data.brands.push({
-                    name: headers[i].querySelector('input').value,
-                    bg: headers[i].style.backgroundColor || "#1e293b",
-                    text: headers[i].style.color || "#ffffff"
-                });
-            }
+            for (let i = 1; i < headers.length; i++) { data.brands.push({ name: headers[i].querySelector('input').value, bg: headers[i].style.backgroundColor, text: headers[i].style.color }); }
             document.querySelectorAll('.tier-row').forEach(row => {
                 const labelCell = row.cells[0];
-                const tier = {
-                    name: labelCell.querySelector('input').value,
-                    bg: labelCell.style.backgroundColor,
-                    text: labelCell.style.color,
-                    models: []
-                };
-                for (let i = 1; i < row.cells.length; i++) {
-                    tier.models.push([row.cells[i].querySelector('.model-name').value, row.cells[i].querySelector('.model-desc').value]);
-                }
-                data.tiers.push(tier);
+                data.tiers.push({ name: labelCell.querySelector('input').value, bg: labelCell.style.backgroundColor, text: labelCell.style.color, cols: row.cells.length -1 });
             });
-
-            const json = JSON.stringify(data);
-            const encoded = btoa(unescape(encodeURIComponent(json)));
-            const url = window.location.origin + window.location.pathname + "#" + encoded;
-            
-            navigator.clipboard.writeText(url).then(() => {
-                const toast = document.getElementById("toast");
-                toast.className = "show";
-                setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
-            });
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+            navigator.clipboard.writeText(window.location.origin + window.location.pathname + "#" + encoded)
+                .then(() => { showToast(); });
         }
+
+        function showToast() { const toast = document.getElementById("toast"); toast.className = "show"; setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000); }
 
         async function downloadTable() {
             const container = document.getElementById('capture-container');
-            const tools = document.querySelectorAll('.color-tool, .del-btn');
+            const tools = document.querySelectorAll('.color-tool, .del-btn, .remove-img-btn, .placeholder-text'); // 캡처 시 숨길 요소들
             tools.forEach(el => el.classList.add('no-capture'));
-            const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff' });
+            
+            // 이미지 로딩 대기 (안정적인 캡처를 위해)
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
             tools.forEach(el => el.classList.remove('no-capture'));
-            const link = document.createElement('a');
-            link.download = `shoe-tier-${Date.now()}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
+            const link = document.createElement('a'); link.download = `running-tier-image-${Date.now()}.png`; link.href = canvas.toDataURL(); link.click();
         }
     </script>
 </body>
-
 </html>
