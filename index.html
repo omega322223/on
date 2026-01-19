@@ -66,4 +66,338 @@
         .no-capture { display: none !important; }
         
         /* 토스트 메시지 */
-        #toast { visibility: hidden; background
+        #toast { visibility: hidden; background-color: #333; color: #fff; border-radius: 8px; padding: 12px 24px; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; font-size: 14px; }
+        #toast.show { visibility: visible; animation: fadein 0.3s, fadeout 0.3s 2.5s; }
+        @keyframes fadein { from {top: 0; opacity: 0;} to {top: 20px; opacity: 1;} }
+        @keyframes fadeout { from {top: 20px; opacity: 1;} to {top: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+    <div id="toast">알림 메시지</div>
+
+    <div class="max-w-[95%] mx-auto mt-6 mb-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-black italic tracking-tighter text-gray-800">TIER <span class="text-blue-600">MASTER</span></h1>
+            <p class="text-xs text-gray-500">셀을 클릭하여 행/열 추가, 삭제, 병합을 자유롭게 하세요.</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="downloadImage()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+                <i class="fas fa-camera"></i> 이미지 저장
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-[95%] mx-auto overflow-auto text-center">
+        <div id="capture-container">
+            <table id="main-table">
+                <thead>
+                    <tr>
+                        <th class="bg-gray-800 text-white w-[120px]" style="background-color: #1e293b;">
+                            <input type="text" class="cell-input head-input" value="TIER \ BRAND">
+                        </th>
+                        <th class="bg-gray-800 text-white" style="background-color: #1e293b;">
+                            <input type="text" class="cell-input head-input" value="ON RUNNING">
+                        </th>
+                        <th class="bg-gray-800 text-white" style="background-color: #1e293b;">
+                            <input type="text" class="cell-input head-input" value="NIKE">
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th class="bg-red-100 text-red-700" style="background-color: #fee2e2; color: #b91c1c;">
+                            <input type="text" class="cell-input head-input" value="RACING">
+                        </th>
+                        <td>
+                            <div class="image-drop-zone"><span class="placeholder-text">📷 Image</span><img class="uploaded-image"><button class="remove-img-btn" onclick="removeImage(this)">×</button></div>
+                            <input type="text" class="cell-input model-name" placeholder="모델명">
+                            <input type="text" class="cell-input model-desc" placeholder="설명">
+                        </td>
+                        <td>
+                            <div class="image-drop-zone"><span class="placeholder-text">📷 Image</span><img class="uploaded-image"><button class="remove-img-btn" onclick="removeImage(this)">×</button></div>
+                            <input type="text" class="cell-input model-name" placeholder="모델명">
+                            <input type="text" class="cell-input model-desc" placeholder="설명">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="bg-slate-100 text-slate-600" style="background-color: #f1f5f9; color: #475569;">
+                            <input type="text" class="cell-input head-input" value="DAILY">
+                        </th>
+                        <td>
+                            <div class="image-drop-zone"><span class="placeholder-text">📷 Image</span><img class="uploaded-image"><button class="remove-img-btn" onclick="removeImage(this)">×</button></div>
+                            <input type="text" class="cell-input model-name" placeholder="모델명">
+                            <input type="text" class="cell-input model-desc" placeholder="설명">
+                        </td>
+                        <td>
+                            <div class="image-drop-zone"><span class="placeholder-text">📷 Image</span><img class="uploaded-image"><button class="remove-img-btn" onclick="removeImage(this)">×</button></div>
+                            <input type="text" class="cell-input model-name" placeholder="모델명">
+                            <input type="text" class="cell-input model-desc" placeholder="설명">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="editor-toolbar">
+        <div class="tool-group">
+            <button class="tool-btn" onclick="insertRow(-1)" title="위로 행 추가"><i class="fas fa-arrow-up"></i><span>행추가(위)</span></button>
+            <button class="tool-btn" onclick="insertRow(1)" title="아래로 행 추가"><i class="fas fa-arrow-down"></i><span>행추가(아래)</span></button>
+            <button class="tool-btn text-red-400 hover:text-red-500" onclick="deleteRow()" title="행 삭제"><i class="fas fa-trash-alt"></i><span>행삭제</span></button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" onclick="insertCol(-1)" title="왼쪽 열 추가"><i class="fas fa-arrow-left"></i><span>열추가(좌)</span></button>
+            <button class="tool-btn" onclick="insertCol(1)" title="오른쪽 열 추가"><i class="fas fa-arrow-right"></i><span>열추가(우)</span></button>
+            <button class="tool-btn text-red-400 hover:text-red-500" onclick="deleteCol()" title="열 삭제"><i class="fas fa-trash-alt"></i><span>열삭제</span></button>
+        </div>
+        <div class="tool-group">
+            <button class="tool-btn" onclick="mergeRight()" title="오른쪽 셀과 병합"><i class="fas fa-object-group"></i><span>우측병합</span></button>
+            <div class="tool-btn" title="배경색 변경">
+                <div class="color-picker-wrapper">
+                    <input type="color" id="bg-color-picker" oninput="changeCellColor(this.value)">
+                </div>
+                <span>색상</span>
+            </div>
+            <button class="tool-btn" onclick="toggleTextColor()" title="글자색 반전 (흑/백)"><i class="fas fa-adjust"></i><span>글자반전</span></button>
+        </div>
+    </div>
+
+    <script>
+        let selectedCell = null;
+        const toolbar = document.getElementById('editor-toolbar');
+
+        // 초기화 및 이벤트 리스너 등록
+        document.addEventListener('DOMContentLoaded', () => {
+            attachCellEvents();
+            
+            // 바탕 클릭 시 선택 해제
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('td') && !e.target.closest('th') && !e.target.closest('#editor-toolbar')) {
+                    deselectCell();
+                }
+            });
+        });
+
+        function attachCellEvents() {
+            const cells = document.querySelectorAll('th, td');
+            cells.forEach(cell => {
+                cell.onclick = (e) => {
+                    // 입력창 클릭 시 이벤트 버블링 방지 (입력 중 툴바 꺼짐 방지)
+                    if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+                    selectCell(cell);
+                };
+                
+                // 드래그 앤 드롭 이벤트
+                cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.style.backgroundColor = '#eff6ff'; });
+                cell.addEventListener('dragleave', (e) => { e.preventDefault(); cell.style.backgroundColor = ''; });
+                cell.addEventListener('drop', handleDrop);
+            });
+        }
+
+        // --- 셀 선택 로직 ---
+        function selectCell(cell) {
+            if (selectedCell) selectedCell.classList.remove('selected');
+            selectedCell = cell;
+            selectedCell.classList.add('selected');
+            toolbar.classList.add('active');
+            
+            // 현재 셀 색상을 피커에 반영
+            const rgb = window.getComputedStyle(cell).backgroundColor;
+            document.getElementById('bg-color-picker').value = rgbToHex(rgb);
+        }
+
+        function deselectCell() {
+            if (selectedCell) selectedCell.classList.remove('selected');
+            selectedCell = null;
+            toolbar.classList.remove('active');
+        }
+
+        // --- 행(Row) 조작 ---
+        function insertRow(offset) {
+            if (!selectedCell) return;
+            const tr = selectedCell.parentElement;
+            const table = tr.parentElement; // tbody or thead
+            const index = tr.rowIndex + (offset > 0 ? 1 : 0);
+            
+            // 테이블 전체(thead포함)에서의 인덱스를 고려하여 삽입
+            const newRow = document.getElementById('main-table').insertRow(index);
+            
+            // 현재 행의 셀 개수만큼 새 셀 생성
+            // 주의: colspan을 고려하지 않은 단순 복제입니다. 
+            // 완벽한 엑셀 구현은 복잡하므로, 가장 기본 셀 개수(첫 행 기준)나 현재 행 기준으로 생성
+            const colCount = countEffectiveCells(tr); 
+            
+            for(let i=0; i<colCount; i++) {
+                const newCell = newRow.insertCell(i);
+                // 첫번째 열은 보통 헤더(th) 역할이므로 스타일 유지 노력
+                if (i === 0 && selectedCell.tagName === 'TH') {
+                    newCell.outerHTML = `<th class="bg-gray-100"><input type="text" class="cell-input head-input" value="NEW ROW"></th>`;
+                } else {
+                    newCell.innerHTML = getModelCellHtml();
+                }
+            }
+            attachCellEvents();
+            showToast("행이 추가되었습니다.");
+        }
+
+        function deleteRow() {
+            if (!selectedCell) return;
+            const tr = selectedCell.parentElement;
+            if (document.querySelectorAll('tr').length <= 1) return showToast("최소 1개의 행은 있어야 합니다.");
+            tr.remove();
+            deselectCell();
+            showToast("행이 삭제되었습니다.");
+        }
+
+        // --- 열(Col) 조작 ---
+        function insertCol(offset) {
+            if (!selectedCell) return;
+            const cellIndex = selectedCell.cellIndex;
+            const targetIndex = cellIndex + (offset > 0 ? 1 : 0);
+            const rows = document.querySelectorAll('#main-table tr');
+            
+            rows.forEach(row => {
+                const newCell = row.insertCell(targetIndex);
+                // 헤더(thead) 부분 처리
+                if (row.parentElement.tagName === 'THEAD') {
+                    newCell.outerHTML = `<th class="bg-gray-800 text-white" style="background-color: #1e293b;"><input type="text" class="cell-input head-input" value="NEW BRAND"></th>`;
+                } else {
+                    newCell.innerHTML = getModelCellHtml();
+                }
+            });
+            attachCellEvents();
+            showToast("열이 추가되었습니다.");
+        }
+
+        function deleteCol() {
+            if (!selectedCell) return;
+            const index = selectedCell.cellIndex;
+            const rows = document.querySelectorAll('#main-table tr');
+            
+            // 최소 1열 유지 확인
+            if (rows[0].cells.length <= 1) return showToast("최소 1개의 열은 있어야 합니다.");
+
+            rows.forEach(row => {
+                if(row.cells[index]) row.deleteCell(index);
+            });
+            deselectCell();
+            showToast("열이 삭제되었습니다.");
+        }
+
+        // --- 병합 (Merge Right) ---
+        function mergeRight() {
+            if (!selectedCell) return;
+            const nextCell = selectedCell.nextElementSibling;
+            if (!nextCell) return showToast("오른쪽에 병합할 셀이 없습니다.");
+            
+            // Colspan 증가
+            const currentSpan = selectedCell.colSpan || 1;
+            const nextSpan = nextCell.colSpan || 1;
+            selectedCell.colSpan = currentSpan + nextSpan;
+            
+            nextCell.remove();
+            showToast("셀이 병합되었습니다.");
+        }
+
+        // --- 스타일 조작 ---
+        function changeCellColor(color) {
+            if (!selectedCell) return;
+            selectedCell.style.backgroundColor = color;
+        }
+
+        function toggleTextColor() {
+            if (!selectedCell) return;
+            const current = window.getComputedStyle(selectedCell).color;
+            selectedCell.style.color = (current === 'rgb(255, 255, 255)') ? '#000000' : '#ffffff';
+            // 내부 input들도 색상 상속
+            const inputs = selectedCell.querySelectorAll('input');
+            inputs.forEach(input => input.style.color = 'inherit');
+        }
+
+        // --- 유틸리티 ---
+        function getModelCellHtml() {
+            return `
+                <div class="image-drop-zone"><span class="placeholder-text">📷 Image</span><img class="uploaded-image"><button class="remove-img-btn" onclick="removeImage(this)">×</button></div>
+                <input type="text" class="cell-input model-name" placeholder="모델명">
+                <input type="text" class="cell-input model-desc" placeholder="설명">
+            `;
+        }
+
+        function countEffectiveCells(tr) {
+            let count = 0;
+            for (let cell of tr.cells) {
+                count += cell.colSpan || 1;
+            }
+            return count;
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.style.backgroundColor = '';
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                const file = files[0];
+                const dropZone = this.querySelector('.image-drop-zone');
+                if(!dropZone) return; // 이미지가 들어갈 수 없는 셀(헤더 등)일 경우
+
+                const img = dropZone.querySelector('.uploaded-image');
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    img.src = reader.result;
+                    dropZone.classList.add('has-image');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeImage(btn) {
+            const zone = btn.closest('.image-drop-zone');
+            zone.querySelector('img').src = '';
+            zone.classList.remove('has-image');
+            event.stopPropagation(); // 셀 선택 방지
+        }
+
+        function rgbToHex(rgb) {
+            if (!rgb || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
+            const sep = rgb.indexOf(",") > -1 ? "," : " ";
+            const rgbArr = rgb.substr(4).split(")")[0].split(sep);
+            let r = (+rgbArr[0]).toString(16), g = (+rgbArr[1]).toString(16), b = (+rgbArr[2]).toString(16);
+            if (r.length == 1) r = "0" + r;
+            if (g.length == 1) g = "0" + g;
+            if (b.length == 1) b = "0" + b;
+            return "#" + r + g + b;
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = "show";
+            setTimeout(() => t.className = t.className.replace("show", ""), 3000);
+        }
+
+        async function downloadImage() {
+            toolbar.style.display = 'none'; // 툴바 숨김
+            const container = document.getElementById('capture-container');
+            
+            // 캡처 시 불필요한 요소 임시 숨김
+            const hiddenElements = document.querySelectorAll('.remove-img-btn, .placeholder-text');
+            hiddenElements.forEach(el => el.classList.add('no-capture'));
+
+            await new Promise(r => setTimeout(r, 100)); // 렌더링 대기
+            
+            const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff' });
+            
+            const link = document.createElement('a');
+            link.download = `tier-list-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+
+            toolbar.style.display = 'flex'; // 툴바 복구
+            hiddenElements.forEach(el => el.classList.remove('no-capture'));
+        }
+    </script>
+</body>
+</html>
